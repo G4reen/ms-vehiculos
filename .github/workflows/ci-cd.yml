@@ -47,20 +47,16 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
+      - name: Instalar Snyk CLI
+        uses: snyk/actions/setup@master
       - name: Snyk - dependencias (bloquea con severidad high o superior)
-        uses: snyk/actions/maven@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=high
-      - name: Snyk Code - analisis estatico del codigo
-        uses: snyk/actions/maven@master
+        run: snyk test --severity-threshold=high
+      - name: Snyk Code - análisis estático del código
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: code test
-          args: --severity-threshold=high
-
+        run: snyk code test --severity-threshold=high
   # 3) Construccion de la imagen Docker (IE1). Solo se publica desde main.
   build-image:
     name: Construir imagen Docker
