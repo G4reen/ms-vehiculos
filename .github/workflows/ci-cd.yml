@@ -119,8 +119,11 @@ jobs:
         env:
           APP_IMAGE: ${{ needs.build-image.outputs.image }}
         run: |
-          export DB_PASSWORD="$(openssl rand -hex 12)"
-          export DB_ROOT_PASSWORD="$(openssl rand -hex 12)"
+          {
+            echo "DB_PASSWORD=$(openssl rand -hex 12)"
+            echo "DB_ROOT_PASSWORD=$(openssl rand -hex 12)"
+            echo "APP_IMAGE=${APP_IMAGE}"
+          } > .env
           docker compose pull app
           docker compose up -d --wait --wait-timeout 180
       - name: Smoke test
