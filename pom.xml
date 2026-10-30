@@ -29,8 +29,8 @@
         <springdoc-openapi.version>3.0.3</springdoc-openapi.version>
         <!-- Parches de seguridad (Snyk): versiones corregidas sobre las que trae Spring Boot 4.0.8 -->
         <tomcat.version>11.0.27</tomcat.version>
-        <jackson-bom.version>3.1.7</jackson-bom.version>
-        <jackson-2-bom.version>2.21.7</jackson-2-bom.version>
+        <jackson-bom.version>3.1.8</jackson-bom.version>
+        <jackson-2-bom.version>2.21.8</jackson-2-bom.version>
     </properties>
 
     <!-- Dependencias minimas: web + JPA + MySQL + validacion + Swagger -->
