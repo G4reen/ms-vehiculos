@@ -1,5 +1,5 @@
 # ---------- Etapa 1: build ----------
-FROM eclipse-temurin:21-jdk-alpine AS build
+FROM eclipse-temurin:24-jdk-alpine AS build
 WORKDIR /workspace
 
 # Se copian primero pom y wrapper para aprovechar la cache de capas de Docker
@@ -12,7 +12,7 @@ RUN ./mvnw -B -q -DskipTests package && \
     cp target/cl-matiivilla-vehiculos-*.jar app.jar
 
 # ---------- Etapa 2: runtime (imagen minima, usuario no root) ----------
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:24-jre-alpine
 WORKDIR /app
 
 RUN addgroup -S app && adduser -S app -G app
