@@ -1,0 +1,164 @@
+name: CI/CD ms-vehiculos
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # 1) Pruebas unitarias + cobertura (IE2)
+  test:
+    name: Pruebas unitarias
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Ejecutar pruebas (JUnit + Mockito) y generar cobertura JaCoCo
+        run: ./mvnw -B verify
+      - name: Publicar reportes de pruebas y cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reportes-pruebas
+          path: |
+            target/surefire-reports/
+            target/site/jacoco/
+
+  # 2) Analisis de seguridad con Snyk (IE3). Si falla, se bloquea el pipeline.
+  security:
+    name: Analisis de seguridad (Snyk)
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Snyk - dependencias (bloquea con severidad high o superior)
+        uses: snyk/actions/maven@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+      - name: Snyk Code - analisis estatico del codigo
+        uses: snyk/actions/maven@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: code test
+          args: --severity-threshold=high
+
+  # 3) Construccion de la imagen Docker (IE1). Solo se publica desde main.
+  build-image:
+    name: Construir imagen Docker
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Login en GHCR
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Nombre y tags de la imagen (trazabilidad por SHA)
+        id: meta
+        run: |
+          IMG="${REGISTRY}/${GITHUB_REPOSITORY,,}"
+          echo "image=${IMG}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "base=${IMG}" >> "$GITHUB_OUTPUT"
+      - name: Build (y push si es main)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ steps.meta.outputs.base }}:${{ github.sha }}
+            ${{ steps.meta.outputs.base }}:latest
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # 4) Despliegue automatico en entorno simulado con Docker Compose (IE4, IE5)
+  deploy:
+    name: Despliegue (Docker Compose)
+    runs-on: ubuntu-latest
+    needs: build-image
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: produccion-simulada
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login en GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Levantar stack con la imagen del commit
+        env:
+          APP_IMAGE: ${{ needs.build-image.outputs.image }}
+        run: |
+          export DB_PASSWORD="$(openssl rand -hex 12)"
+          export DB_ROOT_PASSWORD="$(openssl rand -hex 12)"
+          docker compose pull app
+          docker compose up -d --wait --wait-timeout 180
+      - name: Smoke test
+        run: |
+          curl --fail --retry 5 --retry-delay 3 http://localhost:9004/
+          curl --fail http://localhost:9004/api/v1/vehiculos
+      - name: Logs en caso de falla
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Resumen de despliegue (trazabilidad)
+        run: |
+          {
+            echo "### Despliegue exitoso"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Imagen: \`${{ needs.build-image.outputs.image }}\`"
+            echo "- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Apagar entorno simulado
+        if: always()
+        run: docker compose down -v
+
+  # 5) Alerta: abre un issue si cualquier etapa falla (IE3)
+  notify-failure:
+    name: Alerta de falla
+    runs-on: ubuntu-latest
+    needs: [test, security, build-image, deploy]
+    if: failure()
+    permissions:
+      issues: write
+    steps:
+      - name: Crear issue de alerta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create --repo "$GITHUB_REPOSITORY" \
+            --title "Pipeline fallido en ${GITHUB_REF_NAME} (${GITHUB_SHA::7})" \
+            --body "Fallo el pipeline. Revisar: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"

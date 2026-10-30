@@ -1,0 +1,58 @@
+services:
+  db:
+    image: mysql:8.4
+    container_name: vehiculos-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-vehiculos}
+      MYSQL_USER: ${DB_USERNAME:-vehiculos_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?defina DB_ROOT_PASSWORD}
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    networks: [backend]
+
+  app:
+    image: ${APP_IMAGE:-ms-vehiculos:local}
+    build: .
+    container_name: vehiculos-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:mysql://db:3306/${DB_NAME:-vehiculos}?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      DB_USERNAME: ${DB_USERNAME:-vehiculos_user}
+      DB_PASSWORD: ${DB_PASSWORD}
+      SERVER_PORT: 9004
+    ports:
+      - "${APP_PORT:-9004}:9004"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9004/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    networks: [backend]
+
+volumes:
+  db-data:
+
+networks:
+  backend:
