@@ -88,7 +88,7 @@ jobs:
           echo "image=${IMG}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
           echo "base=${IMG}" >> "$GITHUB_OUTPUT"
       - name: Build (y push si es main)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: ${{ github.ref == 'refs/heads/main' }}
