@@ -95,7 +95,7 @@ _Texto base: ajustar a lo que realmente hicieron y citar según https://bibliote
 
 Se utilizó **Claude (Anthropic)** como apoyo técnico para generar la base de los archivos `Dockerfile`, `docker-compose.yml`, `.github/workflows/ci-cd.yml`, `.github/dependabot.yml`, los manifiestos de `k8s/` y la estructura de este README, y para orientar la depuración de errores del pipeline (configuración de Snyk, variables de entorno en el despliegue). Los integrantes ejecutaron el pipeline, revisaron y validaron el contenido generado, aplicaron las correcciones necesarias y probaron el resultado en GitHub Actions. Las conclusiones y reflexiones individuales fueron redactadas por los integrantes sin apoyo de IA.
 
-_Referencia:_ _[Completar con la cita en el formato indicado por la biblioteca Duoc UC]_
+_Referencia:_ https://bibliotecas.duoc.cl/ia
 
 ## 9. Conclusiones
 
