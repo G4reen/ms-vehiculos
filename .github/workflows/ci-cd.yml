@@ -169,7 +169,7 @@ jobs:
             echo "### Despliegue exitoso en Kubernetes (AWS)"
             echo "- Commit: \`${GITHUB_SHA}\`"
             echo "- Imagen: \`${{ needs.build-image.outputs.image }}\`"
-            echo "- Endpoint AWS: \`http://${{ secrets.EC2_HOST }}\`"
+            echo "- Nodo AWS: \`${{ secrets.EC2_HOST }}\` (NodePort \`30004\`)"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # 6) Alerta: abre un issue si cualquier etapa falla
