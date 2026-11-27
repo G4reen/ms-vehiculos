@@ -13,7 +13,7 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  # 1) Pruebas unitarias + cobertura (IE2)
+  # 1) Pruebas unitarias + cobertura JaCoCo
   test:
     name: Pruebas unitarias
     runs-on: ubuntu-latest
@@ -35,9 +35,46 @@ jobs:
             target/surefire-reports/
             target/site/jacoco/
 
-  # 2) Analisis de seguridad con Snyk (IE3). Si falla, se bloquea el pipeline.
+  # 2) Análisis estático y Quality Gate con SonarCloud (IE5, IE6)
+  sonar:
+    name: Calidad de código (SonarCloud)
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Compilar y generar reporte JaCoCo
+        run: ./mvnw -B verify
+      - name: Cache SonarQube packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      - uses: SonarSource/sonarqube-auth-action@v1.2
+        id: auth
+      - name: SonarQube Scan + Quality Gate
+        uses: SonarSource/sonarqube-scan-action@70bad232163b09d998ea0707ee80c0ec80798c16 # v8.5.1
+        with:
+          args: >
+            -Dsonar.organization=g4reen
+            -Dsonar.projectKey=G4reen_ms-vehiculos
+            -Dsonar.java.binaries=target/classes
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+            -Dsonar.qualitygate.wait=true
+
+  # 3) Análisis de seguridad con Snyk (IE5, IE6). Si falla, bloquea el pipeline.
   security:
-    name: Analisis de seguridad (Snyk)
+    name: Análisis de seguridad (Snyk)
     runs-on: ubuntu-latest
     needs: test
     steps:
@@ -57,11 +94,12 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: snyk code test --severity-threshold=high
-  # 3) Construccion de la imagen Docker (IE1). Solo se publica desde main.
+
+  # 4) Construcción de la imagen Docker. Solo se publica si pasan test, sonar y security.
   build-image:
     name: Construir imagen Docker
     runs-on: ubuntu-latest
-    needs: [test, security]
+    needs: [test, sonar, security]
     permissions:
       contents: read
       packages: write
@@ -97,7 +135,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # 4) Despliegue automatico en entorno simulado con Docker Compose (IE4, IE5)
+  # 5) Despliegue automático (lo actualizaremos a Kubernetes en AWS en el siguiente paso)
   deploy:
     name: Despliegue (Docker Compose)
     runs-on: ubuntu-latest
@@ -145,11 +183,11 @@ jobs:
         if: always()
         run: docker compose down -v
 
-  # 5) Alerta: abre un issue si cualquier etapa falla (IE3)
+  # 6) Alerta: abre un issue si cualquier etapa falla
   notify-failure:
     name: Alerta de falla
     runs-on: ubuntu-latest
-    needs: [test, security, build-image, deploy]
+    needs: [test, sonar, security, build-image, deploy]
     if: failure()
     permissions:
       issues: write

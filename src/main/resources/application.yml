@@ -12,3 +12,14 @@ spring:
 
 server:
   port: ${SERVER_PORT:9004}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ms-vehiculos
