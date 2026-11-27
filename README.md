@@ -82,11 +82,11 @@ kubectl apply -f k8s/secret.yaml -f k8s/mysql.yaml -f k8s/app.yaml
 
 **Pipeline completo en verde en GitHub Actions (pruebas → SonarCloud + Snyk → build GHCR → deploy en AWS k3s):**
 
-![Pipeline exitoso en GitHub Actions](docs/evidencias/08db578d-f7d4-47de-8edb-fe9f6e7a122e.png)
+![Pipeline exitoso en GitHub Actions](docs/evidencias/pipeline_aws.png)
 
 **Calidad de código y cobertura en SonarCloud (Quality Gate Passed, 82.3 % de cobertura, 0.0 % duplicación):**
 
-![Quality Gate en SonarCloud](docs/evidencias/0d326597-0d9a-438a-9421-79a79c974807.png)
+![Quality Gate en SonarCloud](docs/evidencias/sonarcloud_passed.png)
 
 **Bloqueo por falla de seguridad: Snyk detecta vulnerabilidades críticas y detiene el pipeline:**
 
@@ -98,15 +98,15 @@ kubectl apply -f k8s/secret.yaml -f k8s/mysql.yaml -f k8s/app.yaml
 
 **Logs de arranque de Spring Boot 4.0.10 y conexión HikariCP a MySQL 8.4.13 en Kubernetes:**
 
-![Logs de Spring Boot en k3s](docs/evidencias/0864a079-f7a6-4f30-8a23-99f1c84ff2e1.png)
+![Logs de Spring Boot en k3s](docs/evidencias/logs_springboot.png)
 
 **Prueba de carga concurrente con `curl` sobre el servicio expuesto en AWS (`NodePort 30004`):**
 
-![Prueba de carga HTTP](docs/evidencias/03c694e0-8136-4fb5-9023-1042892ded35.png)
+![Prueba de carga HTTP](docs/evidencias/prueba_curl.png)
 
 **Dashboard de observabilidad en tiempo real en Grafana (disponibilidad, RPS, latencia, JVM Heap y CPU por pod):**
 
-![Dashboard de Grafana](docs/evidencias/0fc2a191-1aef-44b0-b38e-556e47a1f191.png)
+![Dashboard de Grafana](docs/evidencias/grafana_dashboard.png)
 
 ## 8. Declaración de uso de Inteligencia Artificial
 
