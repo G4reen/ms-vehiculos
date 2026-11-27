@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.8</version>
+        <version>4.0.10</version>
         <relativePath/>
     </parent>
 
@@ -20,10 +20,6 @@
     <properties>
         <java.version>21</java.version>
         <springdoc-openapi.version>3.0.3</springdoc-openapi.version>
-        <!-- Parches de seguridad (Snyk): versiones corregidas sobre las que trae Spring Boot 4.0.8 -->
-        <tomcat.version>11.0.27</tomcat.version>
-        <jackson-bom.version>3.1.8</jackson-bom.version>
-        <jackson-2-bom.version>2.21.8</jackson-2-bom.version>
     </properties>
 
     <dependencies>

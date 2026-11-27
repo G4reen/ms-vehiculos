@@ -1,0 +1,7 @@
+version: v1.25.0
+ignore:
+  SNYK-JAVA-ORGGLASSFISHJAXB-20883142:
+    - '*':
+        reason: Sin parche disponible en hibernate-core / jaxb-core 4.0.9; la API REST opera solo con JSON y no expone parseo XML externo.
+        expires: 2026-12-31T23:59:59.000Z
+patch: {}
