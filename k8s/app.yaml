@@ -10,14 +10,31 @@ spec:
     metadata:
       labels: {app: ms-vehiculos}
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: ms-vehiculos
-          image: ghcr.io/g4reen/ms-vehiculos:latest
+          image: ghcr.io/g4reen/ms-vehiculos:0.0.1-SNAPSHOT
           ports:
             - containerPort: 9004
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp-dir
+              mountPath: /tmp
           env:
             - name: DB_URL
-              value: jdbc:mysql://mysql:3306/vehiculos?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+              value: jdbc:mysql://mysql:3306/vehiculos?sslMode=PREFERRED&serverTimezone=UTC&allowPublicKeyRetrieval=true
             - name: DB_USERNAME
               valueFrom: {secretKeyRef: {name: vehiculos-db-secret, key: DB_USERNAME}}
             - name: DB_PASSWORD
@@ -33,6 +50,9 @@ spec:
           resources:
             requests: {cpu: 150m, memory: 256Mi}
             limits: {cpu: "1", memory: 512Mi}
+      volumes:
+        - name: tmp-dir
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
