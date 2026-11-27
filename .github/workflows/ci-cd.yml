@@ -137,51 +137,40 @@ jobs:
 
   # 5) Despliegue automático (lo actualizaremos a Kubernetes en AWS en el siguiente paso)
   deploy:
-    name: Despliegue (Docker Compose)
+    name: Despliegue en Kubernetes (AWS)
     runs-on: ubuntu-latest
     needs: build-image
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: produccion-simulada
-    permissions:
-      contents: read
-      packages: read
+    environment: produccion-aws
     steps:
       - uses: actions/checkout@v4
-      - name: Login en GHCR
-        uses: docker/login-action@v3
+      - name: Copiar manifiestos k8s a EC2
+        uses: appleboy/scp-action@v0.1.7
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Levantar stack con la imagen del commit
-        env:
-          APP_IMAGE: ${{ needs.build-image.outputs.image }}
-        run: |
-          {
-            echo "DB_PASSWORD=$(openssl rand -hex 12)"
-            echo "DB_ROOT_PASSWORD=$(openssl rand -hex 12)"
-            echo "APP_IMAGE=${APP_IMAGE}"
-          } > .env
-          docker compose pull app
-          docker compose up -d --wait --wait-timeout 180
-      - name: Smoke test
-        run: |
-          curl --fail --retry 5 --retry-delay 3 http://localhost:9004/
-          curl --fail http://localhost:9004/api/v1/vehiculos
-      - name: Logs en caso de falla
-        if: failure()
-        run: docker compose logs --no-color
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "k8s/*"
+          target: "/home/ubuntu"
+      - name: Aplicar manifiestos y actualizar imagen en k3s
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+            kubectl apply -f /home/ubuntu/k8s/
+            kubectl set image deployment/ms-vehiculos ms-vehiculos=${{ needs.build-image.outputs.image }} || true
+            kubectl rollout status deployment/ms-vehiculos --timeout=180s
       - name: Resumen de despliegue (trazabilidad)
         run: |
           {
-            echo "### Despliegue exitoso"
+            echo "### Despliegue exitoso en Kubernetes (AWS)"
             echo "- Commit: \`${GITHUB_SHA}\`"
             echo "- Imagen: \`${{ needs.build-image.outputs.image }}\`"
-            echo "- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo "- Endpoint AWS: \`http://${{ secrets.EC2_HOST }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
-      - name: Apagar entorno simulado
-        if: always()
-        run: docker compose down -v
 
   # 6) Alerta: abre un issue si cualquier etapa falla
   notify-failure:

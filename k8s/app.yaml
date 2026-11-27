@@ -12,7 +12,7 @@ spec:
     spec:
       containers:
         - name: ms-vehiculos
-          image: ghcr.io/OWNER/REPO:latest   # reemplazar por el SHA del commit
+          image: ghcr.io/g4reen/ms-vehiculos:latest
           ports:
             - containerPort: 9004
           env:
@@ -23,26 +23,28 @@ spec:
             - name: DB_PASSWORD
               valueFrom: {secretKeyRef: {name: vehiculos-db-secret, key: DB_PASSWORD}}
           readinessProbe:
-            httpGet: {path: /, port: 9004}
+            httpGet: {path: /actuator/health, port: 9004}
             initialDelaySeconds: 30
             periodSeconds: 10
           livenessProbe:
-            httpGet: {path: /, port: 9004}
+            httpGet: {path: /actuator/health, port: 9004}
             initialDelaySeconds: 60
             periodSeconds: 20
           resources:
-            requests: {cpu: 250m, memory: 384Mi}
+            requests: {cpu: 150m, memory: 256Mi}
             limits: {cpu: "1", memory: 512Mi}
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: ms-vehiculos
+  labels: {app: ms-vehiculos}
 spec:
   type: NodePort
   selector: {app: ms-vehiculos}
   ports:
-    - port: 9004
+    - name: http
+      port: 9004
       targetPort: 9004
       nodePort: 30004
 ---
@@ -64,3 +66,19 @@ spec:
         target:
           type: Utilization
           averageUtilization: 70
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ms-vehiculos-monitor
+  namespace: default
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: ms-vehiculos
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 15s
